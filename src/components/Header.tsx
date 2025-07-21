@@ -3,6 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Leaf, Menu, User } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import LanguageSelector from "./LanguageSelector";
 
 const Header = () => {
   const location = useLocation();
@@ -11,10 +13,13 @@ const Header = () => {
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard" },
-    { name: "Quiz", path: "/quiz" },
+    { name: "Education", path: "/education" },
+    { name: "Games", path: "/games" },
     { name: "Meal Planner", path: "/meal-planner" },
     { name: "Community", path: "/community" },
   ];
+
+  const { currentUser } = useAuth();
 
   return (
     <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-50">
@@ -47,29 +52,35 @@ const Header = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
+            {/* 🌍 Language first */}
+            <LanguageSelector />
+            {currentUser && !currentUser.isAnonymous &&(
             <Link to="/profile">
               <Button variant="ghost" size="sm" className="hidden sm:flex">
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </Button>
             </Link>
+            )}
             
             {/* Mobile Menu Button */}
             <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <Menu className="w-4 h-4" />
-            </Button>
+  aria-label="Toggle navigation menu"
+  variant="ghost"
+  size="sm"
+  className="md:hidden"
+  onClick={() => setIsMenuOpen(!isMenuOpen)}
+>
+  <Menu className="w-4 h-4" />
+</Button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t">
-            <nav className="flex flex-col space-y-2">
+          <nav className="flex flex-col space-y-2 px-4">
+            <LanguageSelector />
               {navItems.map((item) => (
                 <Link
                   key={item.path}
@@ -84,13 +95,15 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              <Link
-                to="/profile"
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Profile
-              </Link>
+              {currentUser && !currentUser.isAnonymous && (
+            <Link
+              to="/profile"
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Profile
+            </Link>
+          )}
             </nav>
           </div>
         )}

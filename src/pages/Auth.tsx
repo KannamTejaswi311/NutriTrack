@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,26 +13,55 @@ import { useAuth } from "@/contexts/AuthContext";
 const Auth = () => {
   const { login, signup } = useAuth();
 
-    const handleLogin = async (email, password) => {
-    await login(email, password);
-    navigate("/dashboard");
-    };
-
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [name, setName] = useState("");
+  const { guestLogin, currentUser } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate auth process
-    setTimeout(() => {
-      login("priya.sharma@email.com", "Priya Sharma");
-      setIsLoading(false);
-      toast.success("Welcome to NutriTrack! Let's start your healthy journey.");
-      navigate("/dashboard");
-    }, 1500);
-  };
+  const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    await login(email, password);
+    toast.success("Welcome back!");
+    setEmail("");
+    setPassword("");
+    navigate("/dashboard");
+  } catch (err) {
+    toast.error("Login failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const handleSignup = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    if (password.length < 6) {
+      throw new Error("Password should be at least 6 characters.");
+    }
+    await signup(email, password);
+    toast.success("Account created!");
+    setEmail("");
+    setPassword("");
+    setName("");
+    navigate("/dashboard");
+  } catch (err) {
+    console.error("Signup error:", err);
+  toast.error(err?.message || "Signup failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  useEffect(() => {
+  if (currentUser?.isAnonymous) {
+    console.log("User is using app as guest");
+  }
+}, [currentUser]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-orange-50 flex items-center justify-center p-4">
@@ -63,13 +92,14 @@ const Auth = () => {
               </TabsList>
               
               <TabsContent value="login" className="space-y-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
-                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -78,7 +108,8 @@ const Auth = () => {
                     <Input
                       id="password"
                       type="password"
-                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>
@@ -93,13 +124,14 @@ const Auth = () => {
               </TabsContent>
               
               <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
                       type="text"
-                      placeholder="Your Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
                       required
                     />
                   </div>
@@ -108,7 +140,8 @@ const Auth = () => {
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="your@email.com"
+                       value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -117,7 +150,8 @@ const Auth = () => {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>
@@ -128,6 +162,30 @@ const Auth = () => {
                   >
                     {isLoading ? "Creating account..." : "Create Account"}
                   </Button>
+                  <div className="flex items-center gap-2 my-2">
+  <hr className="flex-grow border-gray-300" />
+  <span className="text-gray-500 text-sm">or</span>
+  <hr className="flex-grow border-gray-300" />
+</div>
+
+                  <Button
+  type="button"
+  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
+  onClick={async () => {
+    setIsLoading(true);
+    try {
+      await guestLogin();
+      toast.success("Welcome Guest! You can start using NutriTrack.");
+      navigate("/dashboard");
+    } catch (err) {
+      toast.error("Guest login failed. Try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }}
+>
+  Continue as Guest
+</Button>
                 </form>
               </TabsContent>
             </Tabs>

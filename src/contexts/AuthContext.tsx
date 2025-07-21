@@ -10,6 +10,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  signInAnonymously,      // ← add this
   User,
 } from "firebase/auth";
 import { auth } from "@/firebase";
@@ -19,8 +20,10 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<User>;
   signup: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
+  guestLogin: () => Promise<User>;       // 🆕
 };
 
+// Create context with default fallback functions
 const AuthContext = createContext<AuthCtx>({
   currentUser: null,
   login: async () => {
@@ -30,6 +33,9 @@ const AuthContext = createContext<AuthCtx>({
     throw new Error("AuthContext not initialised");
   },
   logout: async () => {
+    throw new Error("AuthContext not initialised");
+  },
+  guestLogin: async () => {
     throw new Error("AuthContext not initialised");
   },
 });
@@ -52,9 +58,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => signOut(auth);
 
+   const guestLogin = () =>
+    signInAnonymously(auth).then((res) => res.user); // ✅ This was missing
+
+   const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, user => {
+    setCurrentUser(user);
+    setLoading(false);
+  });
+  return unsub;
+}, []);
+
   return (
-    <AuthContext.Provider value={{ currentUser, login, signup, logout }}>
-      {children}
+    <AuthContext.Provider value={{ currentUser, login, signup, logout, guestLogin }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

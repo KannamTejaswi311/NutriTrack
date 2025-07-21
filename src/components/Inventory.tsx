@@ -1,13 +1,16 @@
 import { useState, FormEvent } from "react";
+import { useTranslation } from "react-i18next";          // 🆕
+import { speechLocale } from "@/utils/speechLocale";     // 🆕
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Mic } from 'lucide-react';  //iocn
 import { useInventoryStore } from '../stores/inventoryStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
 export const Inventory = () => {
+   const { i18n } = useTranslation();          // 🆕 current UI language
   const { items, addItem, updateItem, removeItem } = useInventoryStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -18,12 +21,45 @@ export const Inventory = () => {
     expiryDate: '',
   });
 
+   /* ---------------- NEW: voice‑recognition state -------------------------- */
+  const [listening, setListening] = useState(false);
+
   const isExpiringSoon = (d?: string) => {
     if (!d) return false;
-    const diff = (new Date(d).getTime() - Date.now()) / 86400000;
+    const diff = (new Date(d).getTime() - Date.now()) / 86_400_000;
     return diff <= 3 && diff >= 0;
   };
   const isExpired = (d?: string) => (d ? new Date(d).getTime() < Date.now() : false);
+  
+  /* ----------------------- voice input handler ---------------------------- */
+  const handleVoice = () => {
+    const SpeechRec: any =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert("Voice recognition not supported in this browser.");
+      return;
+    }
+    
+    const recog = new SpeechRec();
+    recog.lang = speechLocale(i18n.language);   // <— picks hi‑IN, te‑IN, …
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+
+    setListening(true);
+    recog.onresult = (e: any) => {
+      const spoken = e.results[0][0].transcript.trim();
+      const cleaned = spoken.replace(/[.,!?।।،؛॥]+$/g, ""); // remove punctuation at the end
+      const merged = formData.name
+        ? `${formData.name}, ${cleaned}`
+        : cleaned;
+      setFormData({ ...formData, name: merged });
+      setListening(false);
+    };
+    recog.onerror = () => setListening(false);
+    recog.onend = () => setListening(false);
+
+    recog.start();
+  };
   
    /* ---------------- form submit -------------------- */
   function handleSubmit(e: FormEvent) {
@@ -64,12 +100,15 @@ export const Inventory = () => {
     <p className="text-gray-600">{items.length} items tracked</p>
   </div>
 
+    {/* Show this button only after at least one item exists */}
+  {items.length > 0 && (
     <DialogTrigger asChild>
-  <Button className="bg-green-600 hover:bg-green-700">
-    <Plus className="w-4 h-4 mr-2" />
-    Add Item
-  </Button>
-</DialogTrigger>
+      <Button className="bg-green-600 hover:bg-green-700">
+        <Plus className="w-4 h-4 mr-2" />
+        Add Item
+      </Button>
+    </DialogTrigger>
+  )}
 
 </div>
 
@@ -95,14 +134,32 @@ export const Inventory = () => {
           <DialogHeader>
             <DialogTitle>{editingItem ? "Edit Food Item" : "Add Food Item"}</DialogTitle>
           </DialogHeader>
+{/* ------------- Food name + mic ------------- */}
+          {/* --- form wrapper: add this line --- */}
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-            <Label>Food Name</Label>
+            <Label className="flex items-center justify-between">
+              <span>Food Name</span>
+
+              {/* 🎤 mic button */}
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={`border ${listening ? "animate-pulse" : ""}`}
+                onClick={handleVoice}
+                aria-label="Speak"
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+            </Label>
+
             <Input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
             />
 
+            {/* ------------- Quantity & unit ------------- */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Quantity</Label>
@@ -110,7 +167,9 @@ export const Inventory = () => {
                   type="number"
                   step="0.1"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, quantity: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -118,7 +177,9 @@ export const Inventory = () => {
                 <Label>Unit</Label>
                 <select
                   value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
+                  }
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="kg">kg</option>
