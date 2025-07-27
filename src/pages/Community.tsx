@@ -47,6 +47,17 @@ const [replyText, setReplyText] = useState<string>("");
 const [activePost, setActivePost] = useState<string | null>(null); // For tracking which post is being replied to
 const [tags, setTags] = useState<string[]>([]);
 
+  const [questions, setQuestions] = useState([]);
+  const [question, setQuestion] = useState("");
+
+  const fetchQuestions = async () => {
+    const res = await fetch("http://localhost:5000/api/questions");
+    const data = await res.json();
+    setQuestions(data);
+  };
+
+    const [isQuestion, setIsQuestion] = useState(false);
+
 const tagCounts: Record<string, number> = {};
 posts.forEach(post => {
   post.tags.forEach(tag => {
@@ -73,6 +84,20 @@ useEffect(() => {
       setLoading(false);
     });
 }, []);
+
+useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+ const handleAsk = async () => {
+    await fetch("http://localhost:5000/api/questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, askedBy: "User" })
+    });
+    setQuestion("");
+    fetchQuestions();
+  };
 
 const handlePost = async () => {
   if (!newPost && !newImage && !audioURL) {
@@ -243,6 +268,15 @@ if (!posts || posts.length === 0) return <p>No posts available</p>;
                     </Badge>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+  <input
+    type="checkbox"
+    checked={isQuestion}
+    onChange={() => setIsQuestion(!isQuestion)}
+  />
+  <label>Ask as Question</label>
+</div>
+
               </CardContent>
             </Card>
 

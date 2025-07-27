@@ -14,7 +14,9 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo192.png'],
+      includeAssets: ['favicon.svg', 'logo192.png',
+        'stories/mother-story.mp4', 'stories/child-story.mp4'
+      ],
       manifest: {
         name: 'NutriTrack',
         short_name: 'NutriTrack',

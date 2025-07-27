@@ -1,15 +1,14 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Leaf, Menu, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import LanguageSelector from "./LanguageSelector";
 
 const Header = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === "/";
+  const { currentUser } = useAuth();
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard" },
@@ -17,9 +16,8 @@ const Header = () => {
     { name: "Games", path: "/games" },
     { name: "Meal Planner", path: "/meal-planner" },
     { name: "Community", path: "/community" },
+    { name: "Grocery", path: "/grocery" },
   ];
-
-  const { currentUser } = useAuth();
 
   return (
     <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-50">
@@ -35,60 +33,54 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            {!isHomePage && navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`text-sm font-medium transition-colors hover:text-green-600 ${
-                  location.pathname === item.path 
-                    ? 'text-green-600' 
-                    : 'text-gray-600'
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+            {!isHomePage &&
+              navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`text-sm font-medium transition-colors hover:text-green-600 ${
+                    location.pathname === item.path ? "text-green-600" : "text-gray-600"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
           </nav>
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* 🌍 Language first */}
-            <LanguageSelector />
-            {currentUser && !currentUser.isAnonymous &&(
-            <Link to="/profile">
-              <Button variant="ghost" size="sm" className="hidden sm:flex">
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </Button>
-            </Link>
+            {currentUser && !currentUser.isAnonymous && (
+              <Link to="/profile">
+                <Button variant="ghost" size="sm" className="hidden sm:flex">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Button>
+              </Link>
             )}
-            
+
             {/* Mobile Menu Button */}
             <Button
-  aria-label="Toggle navigation menu"
-  variant="ghost"
-  size="sm"
-  className="md:hidden"
-  onClick={() => setIsMenuOpen(!isMenuOpen)}
->
-  <Menu className="w-4 h-4" />
-</Button>
+              aria-label="Toggle navigation menu"
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t">
-          <nav className="flex flex-col space-y-2 px-4">
-            <LanguageSelector />
+            <nav className="flex flex-col space-y-2 px-4">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
                   className={`px-4 py-2 text-sm font-medium transition-colors hover:text-green-600 hover:bg-green-50 rounded-md ${
-                    location.pathname === item.path 
-                      ? 'text-green-600 bg-green-50' 
-                      : 'text-gray-600'
+                    location.pathname === item.path ? "text-green-600 bg-green-50" : "text-gray-600"
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -96,14 +88,14 @@ const Header = () => {
                 </Link>
               ))}
               {currentUser && !currentUser.isAnonymous && (
-            <Link
-              to="/profile"
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Profile
-            </Link>
-          )}
+                <Link
+                  to="/profile"
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+              )}
             </nav>
           </div>
         )}

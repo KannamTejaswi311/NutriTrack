@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import i18n from "@/i18n";
 import confetti from "canvas-confetti"
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +50,6 @@ const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const mealTimes = ["breakfast", "lunch", "dinner"];   // lower‑case keys
 
 export default function MealPlanner() {
-  const { t } = useTranslation();
   const [showAltMap, setShowAltMap] = useState<Record<string, boolean>>({});
   const [selectedMeal, setSelectedMeal] = useState<MealPlan | null>(null);
   // ✅ move the checklist state here
@@ -65,8 +62,24 @@ export default function MealPlanner() {
   const [showCongrats, setShowCongrats] = useState(false);
 const [completedMeal, setCompletedMeal] = useState<MealPlan | null>(null);
 
-  /* ── 1. make sure browser voices are ready ───────────────── */
-  function useVoicesReady() {
+ const [lang, setLang] = useState("en");
+
+// ✅ Detect Google Translate language changes
+useEffect(() => {
+  const observer = new MutationObserver(() => {
+    setLang(document.documentElement.lang || "en");
+  });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["lang"],
+  });
+
+  return () => observer.disconnect();
+}, []);
+
+// ✅ Ensure voices are ready
+function useVoicesReady() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -86,88 +99,72 @@ const [completedMeal, setCompletedMeal] = useState<MealPlan | null>(null);
 
 const voicesReady = useVoicesReady();
 
- function speakRecipe(meal: MealPlan, detailed = false) {
-  if (!voicesReady) return;
+// ✅ Voice map for supported languages
+const voiceMap = { en: "en-IN", hi: "hi-IN", te: "te-IN" };
 
-  window.speechSynthesis.cancel();
-
-  const voiceMap = { en: "en-IN", hi: "hi-IN", te: "te-IN" };
-  const lang = voiceMap[i18n.language] || "en-IN";
-
+// ✅ Get voice based on current language (from <html lang>)
+function getVoiceForLang(targetLang: string) {
   const voices = window.speechSynthesis.getVoices();
-  const useVoice = voices.find(v => v.lang === lang) || voices[0];
 
-  let text = "";
+  // 1. Exact match (e.g., hi-IN)
+  let voice = voices.find(v => v.lang.toLowerCase() === targetLang.toLowerCase());
 
-  if (!detailed) {
-    // Read card summary info
-    text = `${t(meal.name)}. Time: ${meal.time}. Servings: ${meal.servings}. Calories: ${meal.calories}. Nutrition: ${t(meal.nutrition)}. Ingredients: ${meal.ingredients.join(", ")}.`;
-  } else {
-    // Read cooking steps in detail
-   const steps = [
-  t("letsCook", { meal: meal.name.replace(/^[^\w]+/, "") }),
-  t("youNeed",  { items: meal.ingredients.join(", ") }),
-  t("Prepare"),
-  t("Cook"),
-  t("Serve")
-];
-    // Speak steps sequentially
-    let index = 0;
-    const utterStep = () => {
-      if (index >= steps.length) return;
-      const u = new SpeechSynthesisUtterance(steps[index]);
-      u.voice = useVoice;
-      u.lang = useVoice.lang;
-      u.rate = 0.9;
-      u.onend = () => {
-        index++;
-        utterStep();
-      };
-      window.speechSynthesis.speak(u);
-    };
-    utterStep();
+  // 2. Partial match (e.g., "hi" for Hindi)
+  if (!voice) {
+    const prefix = targetLang.split("-")[0];
+    voice = voices.find(v => v.lang.startsWith(prefix));
+  }
+
+  // 3. Fallback to English
+  if (!voice) voice = voices.find(v => v.lang.startsWith("en")) || voices[0];
+
+  return voice;
+}
+
+// ✅ Speak visible card text (summary)
+function speakCardSummaryFromScreen(mealKey: string, lang: string) {
+  if (!voicesReady) {
+    console.warn("Voices not ready");
     return;
   }
 
-  const u = new SpeechSynthesisUtterance(text);
-  u.voice = useVoice;
-  u.lang = useVoice.lang;
-  u.rate = 0.9;
-  window.speechSynthesis.speak(u);
-}
+  const element = document.querySelector(`[data-meal="${mealKey}"]`);
+  if (!element) {
+    console.warn("Meal element not found");
+    return;
+  }
 
-function speakCardSummary(
-  meal: MealPlan,
-  useAlt: boolean,
-  voicesReady: boolean
-) {
-  if (!voicesReady) return;
+  const text = element.innerText; // Whatever is visible after translation
+  const voice = getVoiceForLang(lang);
 
-  const voiceMap = { en: "en-IN", hi: "hi-IN", te: "te-IN" };
-  const lang = voiceMap[i18n.language] || "en-IN";
-  const voice =
-    window.speechSynthesis.getVoices().find(v => v.lang === lang) ||
-    window.speechSynthesis.getVoices()[0];
-
-  const ingredients = meal.ingredients.map(ing =>
-    useAlt && altMap[ing]?.[0] ? altMap[ing][0] : ing
-  );
-
-  const text = [
-    t(meal.name).replace(/^[^\w]+/, ""),
-    `${meal.time}, ${meal.calories}`,
-    `${meal.servings} ${i18n.t("servings")}`,
-    `${i18n.t("ingredients")}: ${ingredients.join(", ")}`,
-    `${t(meal.nutrition)}`
-  ].join(". ");
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.lang = voice.lang;
+  utterance.rate = 0.9;
 
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.voice = voice;
-  u.lang = voice.lang;
-  u.rate = 0.9;
-  window.speechSynthesis.speak(u);
+  window.speechSynthesis.speak(utterance);
 }
+
+// ✅ Speak visible steps (recipe modal)
+function speakRecipeFromScreen(lang: string) {
+  if (!voicesReady) return;
+
+  const element = document.querySelector(".cooking-modal"); // Add class in modal container
+  if (!element) return;
+
+  const text = element.innerText; // Full translated steps
+  const voice = getVoiceForLang(lang);
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice;
+  utterance.lang = voice.lang;
+  utterance.rate = 0.9;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
 
   const estimatedCost = (meal: MealPlan) =>
   meal.ingredients.reduce((total, ing) => {
@@ -178,9 +175,9 @@ function speakCardSummary(
 
 // Create a map to translated labels so we don't call t() in render loops
 const mealTimeLabel = {
-  breakfast: t("breakfast"),
-  lunch:     t("lunch"),
-  dinner:    t("dinner")
+  breakfast: "breakfast",
+  lunch:     "lunch",
+  dinner:    "dinner"
 };
 
   // download PDF of weekly grid
@@ -208,26 +205,11 @@ const mealTimeLabel = {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 mb-1">
-              {t("mealPlannerTitle")}
+              Smart Meal Planner
             </h1>
             <p className="text-gray-600">
-              {t("mealPlannerDesc")}
+              Personalized meal ideas to keep your family healthy
             </p>
-          </div>
-          <div className="w-48">
-            <Select
-              onValueChange={(lng) => i18n.changeLanguage(lng)}
-              defaultValue={i18n.language}
-            >
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="hi">हिन्दी</SelectItem>
-                <SelectItem value="te">తెలుగు</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -235,12 +217,12 @@ const mealTimeLabel = {
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {mealPlans.map((meal) => (
             <Card
-              key={t(meal.name)}
+              key={meal.name} data-meal={meal.key}
               className="bg-white border-2 border-lime-200 rounded-lg shadow-sm hover:shadow-lg transition-shadow"
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{t(meal.emoji)}{t(meal.key)}</span>
+                  <span>{meal.emoji} {meal.key}</span>
                   <div className="flex items-center text-sm text-gray-600">
                     <Clock className="w-4 h-4 mr-1" />
                     {meal.time}
@@ -249,10 +231,10 @@ const mealTimeLabel = {
                 <CardDescription className="flex flex-wrap items-center gap-4 text-sm">
                   <span className="flex items-center">
                     <Users className="w-4 h-4 mr-1" />
-                    {meal.servings} {t("servings")}
+                    {meal.servings} servings
                   </span>
-                  <span>{meal.calories} / {t("serving")}</span>
-                  <span>₹{estimatedCost(meal).toFixed(1)} / {t("serving")}</span>
+                  <span>{meal.calories} / serving</span>
+                  <span>₹{estimatedCost(meal).toFixed(1)} / serving</span>
                 </CardDescription>
               </CardHeader>
 
@@ -260,15 +242,15 @@ const mealTimeLabel = {
                 {/* ingredients */}
                 <div>
                   <h4 className="font-medium text-gray-800 mb-2">
-                    {t("ingredients")}:
+                    Ingredients:
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {meal.ingredients.map((ing) => (
                       <span
-                        key={t(ing)}
+                        key={ing}
                         className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
                       >
-                      {t(showAltMap[meal.name] && altMap[ing]?.[0] ? altMap[ing][0] : ing)}
+                      {showAltMap[meal.name] && altMap[ing]?.[0] ? altMap[ing][0] : ing}
                       </span>
                     ))}
                     <Button
@@ -287,7 +269,7 @@ const mealTimeLabel = {
                 {/* nutrition tag */}
                 <div className="flex items-center gap-2 text-sm text-green-600">
                   <Heart className="w-4 h-4" />
-                  {t(meal.nutrition)}
+                  {meal.nutrition}
                 </div>
 
                 {/* action buttons */}
@@ -295,17 +277,17 @@ const mealTimeLabel = {
                   <Button
   className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
   disabled={!voicesReady}
-  onClick={() =>
-    speakCardSummary(meal, showAltMap[meal.name] ?? false, voicesReady)
-  }
+  onClick={() => speakCardSummaryFromScreen(meal.key, lang)}
 >
-  <Volume2 className="w-4 h-4 mr-2" />
-  {t("Listen")}
+  <Volume2 className="w-4 h-4 mr-2" /> Listen
 </Button>
-              <Button className="flex-1 bg-lime-600 hover:bg-lime-700"
-                          onClick={()=>{setDoneSteps([]); setSelectedMeal(meal)}}>
-                    <Utensils className="w-4 h-4 mr-2"/>{t("startCooking")}
-                  </Button>
+              <Button
+  className="flex-1 bg-green-600 hover:bg-green-700"
+  disabled={!voicesReady}
+  onClick={() => speakRecipeFromScreen(lang)}
+>
+  <Volume2 className="w-4 h-4 mr-2" /> Listen
+</Button>
                 </div>
               </CardContent>
             </Card>
@@ -316,9 +298,9 @@ const mealTimeLabel = {
         <div id="weekly-plan">
         <Card className="mt-8 bg-white/80 backdrop-blur-sm">
   <CardHeader>
-    <CardTitle>{t("weeklyPlan")}</CardTitle>
+    <CardTitle>This Week's Plan</CardTitle>
     <CardDescription>
-      {t("weeklyPlanDesc")}
+      Your healthy weekly meal schedule
     </CardDescription>
   </CardHeader>
 
@@ -329,7 +311,7 @@ const mealTimeLabel = {
       key={day}
       className="text-left p-4 border rounded-lg bg-white hover:bg-gray-50 shadow-sm"
     >
-      <h3 className="font-semibold text-gray-800 text-center mb-3">{t(day)}</h3>
+      <h3 className="font-semibold text-gray-800 text-center mb-3">{day}</h3>
 
       {mealTimes.map((label, j) => {
   const meal = mealPlans[(i + j) % mealPlans.length];
@@ -344,10 +326,10 @@ const mealTimeLabel = {
         return (
           <details key={mealTimeLabel[label]} className={`mb-2 rounded-lg ${colorClass}`}>
             <summary className="cursor-pointer px-2 py-1 text-xs font-semibold">
-              {t(mealTimeLabel[label])}
+              {mealTimeLabel[label]}
             </summary>
             <ul className="list-disc list-inside px-4 py-1 text-[11px]">
-              <li>{meal.ingredients.map((ing) => t(ing)).join(", ")}</li>
+              <li>{meal.ingredients.join(", ")}</li>
             </ul>
           </details>
         );
@@ -368,19 +350,19 @@ const mealTimeLabel = {
     onClick={downloadPDF}
     className="bg-blue-600 hover:bg-blue-700 text-white"
   >
-    {t("downloadPlan")} 
+    Download Weekly Plan 
   </Button>
 
   <a
     href={`https://wa.me/?text=${encodeURIComponent(
-      t("weeklyPlan") + " 📅\n\n" +
+     " This Week's Plan" + " 📅\n\n" +
       "Breakfast: Oats & Fruits\nLunch: Dal Rice\nDinner: Roti Sabzi"
     )}`}
     target="_blank"
     rel="noopener noreferrer"
   >
     <Button className="bg-green-600 hover:bg-green-700 text-white">
-      {t("shareWithASHA")}
+      Share with ASHA Worker
     </Button>
   </a>
 </div>
@@ -388,11 +370,11 @@ const mealTimeLabel = {
      {/* ───────── Cooking Modal ───────── */}
       <Dialog open={!!selectedMeal} onOpenChange={()=>setSelectedMeal(null)}>
         {selectedMeal && (
-           <AnimatedDialogContent>
+           <AnimatedDialogContent className="cooking-modal">
             <DialogHeader>
-              <DialogTitle className="text-xl">{t(selectedMeal.key)}</DialogTitle>
+              <DialogTitle className="text-xl">{selectedMeal.key}</DialogTitle>
               <DialogDescription>
-    {t("This modal shows cooking steps and ingredients.")}
+    This modal shows cooking steps and ingredients.
   </DialogDescription>
             </DialogHeader>
 
@@ -404,14 +386,14 @@ const mealTimeLabel = {
               </p>
 
               <div>
-                <h4 className="font-semibold mb-1">{t("ingredients")}:</h4>
+                <h4 className="font-semibold mb-1">Ingredients:</h4>
                 <ul className="list-disc list-inside ml-4 text-sm">
-                  {selectedMeal.ingredients.map(i=><li key={i}>{t(i)}</li>)}
+                  {selectedMeal.ingredients.map(i=><li key={i}>{i}</li>)}
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-semibold mb-1">{t("Steps")}:</h4>
+                <h4 className="font-semibold mb-1">Steps:</h4>
                 <ol className="space-y-2">
   {["Prepare", "Cook", "Serve"].map((key, idx)=>(
     <motion.li
@@ -426,7 +408,7 @@ const mealTimeLabel = {
   ${doneSteps.includes(idx) ? "bg-green-500 border-green-500" : "border-gray-400"}`}>
   {doneSteps.includes(idx) && "✓"}
 </span>
-      <span>{t(key)}</span>
+      <span>{key}</span>
     </motion.li>
   ))}
 </ol>
@@ -434,8 +416,8 @@ const mealTimeLabel = {
               <div className="flex gap-2 pt-2">
                 <Button className="flex-1 bg-green-600 hover:bg-green-700"
                         disabled={!voicesReady}
-                        onClick={()=>speakRecipe(selectedMeal,true)}>
-                  <Volume2 className="w-4 h-4 mr-2"/> {t("Listen")}
+                        onClick={()=>speakRecipe(selectedMeal)}>
+                  <Volume2 className="w-4 h-4 mr-2"/> Listen
                 </Button>
                 <Button className="flex-1" variant="outline"
                         onClick={() => {
@@ -483,7 +465,7 @@ setTimeout(() => {
   setTimeout(() => setShowCongrats(false), 3000);
 }}
 >
-                  {t("Done")}
+                  Done
                 </Button>
               </div>
             </div>
@@ -498,9 +480,9 @@ setTimeout(() => {
     exit={{ opacity: 0 }}
     className="fixed bottom-6 right-6 bg-white border border-green-300 text-green-700 px-6 py-3 rounded-lg shadow-lg text-center z-50"
   >
-    <div className="text-2xl font-semibold mb-1">🎉 {t("Congratulations")}!</div>
+    <div className="text-2xl font-semibold mb-1">🎉 Congratulations!</div>
     <div className="text-sm">
-      {t("You have completed")} <strong>{t(completedMeal!.key)}</strong> 👏🍽️
+      You have completed <strong>{completedMeal.key}!</strong> 👏🍽️
     </div>
   </motion.div>
 )}

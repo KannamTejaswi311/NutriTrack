@@ -174,10 +174,10 @@ useEffect(() => {
   {/* Heading + subtitle */}
   <div>
     <h1 className="text-3xl font-bold text-gray-800 mb-1">
-      {t("welcome")} 🌅
+      Welcome 🌅
     </h1>
     <p className="text-gray-600">
-      {t("Let's make today's meals healthy and delicious")}
+      Let's make today's meals healthy and delicious
     </p>
   </div>
 </div>
@@ -255,7 +255,7 @@ useEffect(() => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Utensils className="w-5 h-5 text-green-600" />
-                {t("inventoryTitle")}
+                Your Kitchen Inventory
               </CardTitle>
               <CardDescription>
                 What's available in your kitchen today?
@@ -271,7 +271,7 @@ useEffect(() => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
     <CardTitle className="flex items-center gap-2">
       <Heart className="w-5 h-5 text-orange-600" />
-      {t("smartMeal")}
+      Smart Meal Suggestions
               </CardTitle>
               {/* Filter Dropdown */}
     <select
@@ -285,7 +285,7 @@ useEffect(() => {
     </select>
     </div>
               <CardDescription>
-                {t("mealNote")}
+                Based on what you have available
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -406,19 +406,22 @@ useEffect(() => {
 
         {/* Quick Actions */}
         <div className="mt-8 grid md:grid-cols-2 gap-4">
-          <Link to="/games" className="block"> 
-          <Button variant="outline" className="h-20 text-left justify-start  w-full hover:bg-green-50 border-green-200">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <Star className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-semibold"> Games </p>
-                <p className="text-sm text-gray-600"> Play quizzes & challenges </p>
-              </div>
-            </div>
-          </Button>
-          </Link>
+          <Link to="/grocery" className="block">
+  <Button
+    variant="outline"
+    className="h-20 text-left justify-start w-full hover:bg-green-50 border-green-200"
+  >
+    <div className="flex items-center gap-4">
+      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+        <Utensils className="w-6 h-6 text-green-600" />
+      </div>
+      <div>
+        <p className="font-semibold"> Grocery Guide </p>
+        <p className="text-sm text-gray-600"> Shop healthy essentials </p>
+      </div>
+    </div>
+  </Button>
+</Link>
 
           <Button
             variant="outline"
@@ -435,8 +438,8 @@ useEffect(() => {
                 <Heart className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <p className="font-semibold">{t("ashaTitle")}</p>
-                <p className="text-sm text-gray-600">{t("ashaDesc")}</p>
+                <p className="font-semibold">Share with ASHA Worker</p>
+                <p className="text-sm text-gray-600">Send today's meal log</p>
               </div>
             </div>
           </Button>
