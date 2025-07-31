@@ -3,7 +3,7 @@
 
 ## Project info
 
-**URL**: [click here](https://nutri-track-tau.vercel.app/)
+**URL**: [click here for Demo](https://nutri-track-tau.vercel.app/)
 
 
 ## What technologies are used for this project?
